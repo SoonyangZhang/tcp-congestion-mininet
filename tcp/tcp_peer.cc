@@ -1,0 +1,86 @@
+#include <memory.h>
+#include <string.h>
+#include "base/logging.h"
+#include "base/byte_codec.h"
+#include "tcp_peer.h"
+#include "tcp_server.h"
+
+namespace tcp{
+const int kBufferSize=1500;
+const char *done_msg="read all done";
+void ReadEventCallback(struct bufferevent *bev, void *arg){
+	TcpPeer *peer=static_cast<TcpPeer*>(arg);
+	peer->NotifiRead();
+}
+void ErrorCallback(struct bufferevent *bev, short event, void *arg){
+	TcpPeer *peer=static_cast<TcpPeer*>(arg);
+	peer->NotifiError(event);
+}
+TcpPeer::TcpPeer(TcpServer*server,evutil_socket_t fd){
+	server_=server;
+	sockfd_=fd;
+	evutil_make_socket_nonblocking(sockfd_);
+	struct event_base *evb=server_->getEventBase();
+	bev_= bufferevent_socket_new(evb,sockfd_, BEV_OPT_CLOSE_ON_FREE);
+    bufferevent_setcb(bev_, ReadEventCallback, NULL, ErrorCallback, (void*)this);
+    bufferevent_enable(bev_, EV_READ|EV_WRITE|EV_PERSIST);
+}
+TcpPeer::~TcpPeer(){
+	BufferFree();
+}
+void TcpPeer::NotifiError(short event){
+    if (event & BEV_EVENT_TIMEOUT) {
+        printf("Timed out\n");
+    }
+    else if (event & BEV_EVENT_EOF) {
+        printf("connection closed\n");
+        server_->PeerClose(sockfd_);
+        Close();
+    }
+    else if (event & BEV_EVENT_ERROR) {
+        printf("some other error\n");
+        server_->PeerClose(sockfd_);
+        Close();
+    }
+}
+void TcpPeer::NotifiRead(){
+    char line[kBufferSize];
+    int n=0;
+    while (n = bufferevent_read(bev_, line, kBufferSize), n > 0) {
+    	if(first_packet_){
+    		basic::DataReader reader(line,n);
+    		uint32_t first,second;
+    		reader.ReadUInt32(&first);
+    		reader.ReadUInt32(&second);
+    		LOG(INFO)<<"recv "<<first<<" "<<second;
+    		client_id_=first;
+    		totalByte_=second;
+    		first_packet_=false;
+    	}
+    	recvByte_+=n;
+    	if(recvByte_>=totalByte_){
+    		SendDoneSignal();
+    	}
+    }
+}
+void TcpPeer::BufferFree(){
+	if(bev_){
+		bufferevent_free(bev_);
+		bev_=nullptr;
+	}
+}
+void TcpPeer::Close(){
+	if(sockfd_>0){
+		evutil_closesocket(sockfd_);
+		sockfd_=0;
+	}
+}
+void TcpPeer::SendDoneSignal(){
+	char buffer[kBufferSize]={0};
+	memset(buffer,0,kBufferSize);
+	int msglen=strlen(done_msg);
+	memcpy(buffer,done_msg,msglen);
+	bufferevent_write(bev_, buffer, msglen+1);
+}
+}
+

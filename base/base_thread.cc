@@ -28,7 +28,7 @@ void *thread_fun(void *param){
     BaseThread *thread=static_cast<BaseThread*>(param);
     ThreadManager::Instance()->SetCurrentThread(thread);
     thread->Run();
-    return;
+    return NULL;
 }
 //seems not safe
 BaseThread *BaseThread::Current(){

@@ -7,7 +7,7 @@
 #include <event2/event.h>
 #include <event2/bufferevent.h>
  
-#define LISTEN_PORT 9999
+#define LISTEN_PORT 8888
 #define LISTEN_BACKLOG 32
  
 void do_accept(evutil_socket_t listener, short event, void *arg);

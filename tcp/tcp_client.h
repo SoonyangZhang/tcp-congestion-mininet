@@ -12,9 +12,14 @@
 #include "base/random.h"
 namespace tcp{
 class NetworkThread;
+class ActiveClientCounter{
+public:
+	virtual void Decrease()=0;
+	virtual ~ActiveClientCounter(){}
+};
 class TcpClient{
 public:
-	TcpClient(NetworkThread* thread,const char*serv_ip,
+	TcpClient(NetworkThread* thread,ActiveClientCounter *counter,const char*serv_ip,
 			uint16_t port,std::string &cc_algo);
 	~TcpClient();
 	void setSenderInfo(uint32_t cid,uint32_t length);
@@ -36,6 +41,7 @@ private:
 	int WritePacketInBatch(int length);
 	uint32_t client_id_{0};
 	NetworkThread *thread_;
+	ActiveClientCounter *counter_{nullptr};
 	int sockfd_{-1};
 	struct sockaddr_in servaddr_;
 	base::BaseThread UsedOnce_;

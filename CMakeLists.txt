@@ -15,6 +15,7 @@ include_directories(${CMAKE_SOURCE_DIR}/tcp)
 set(base_LIB
 base/byte_codec.cc
 base/base_thread.cc
+base/callback.cc
 base/proto_time.cc
 base/random.cc
 )
@@ -25,6 +26,7 @@ tcp/network_thread.cc
 tcp/tcp_client.cc
 tcp/tcp_peer.cc
 tcp/tcp_server.cc
+tcp/tcp_trace.cc
 )
 add_library(tcp STATIC ${tcp_LIB})
 
@@ -42,7 +44,7 @@ target_link_libraries(${EXECUTABLE_NAME} base event)
 
 set(EXECUTABLE_NAME "timer")
 add_executable(${EXECUTABLE_NAME} ${CMAKE_SOURCE_DIR}/timer.cc)
-target_link_libraries(${EXECUTABLE_NAME} base event)
+target_link_libraries(${EXECUTABLE_NAME} tcp base event pthread)
 
 set(EXECUTABLE_NAME "echo_client")
 add_executable(${EXECUTABLE_NAME} ${CMAKE_SOURCE_DIR}/echo_client.cc)

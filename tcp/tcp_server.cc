@@ -11,6 +11,10 @@ void DeleteEventCallback(evutil_socket_t fd, short event, void *arg){
 	TcpServer *server=static_cast<TcpServer*>(arg);
 	server->DeletePeerList();
 }
+TcpServer::TcpServer(std::string &name){
+	startTime_=clock_.Now();
+	tracer_.reset(new TcpTrace(name));
+}
 TcpServer::~TcpServer(){
 	if(evb_){
 		event_base_free(evb_);
@@ -47,6 +51,7 @@ void TcpServer::Accept(){
         return;
     }
     std::shared_ptr<TcpPeer> peer(new TcpPeer(this,fd));
+    peer->SetTraceRecvFun(base::MakeCallback(&TcpServer::OnTraceData,this));
     peers_.insert(std::make_pair(fd,peer));
 }
 void TcpServer::PeerClose(evutil_socket_t fd){
@@ -94,6 +99,17 @@ void TcpServer::Close(){
 	if(listenfd_>0){
 		evutil_closesocket(listenfd_);
 		listenfd_=0;
+	}
+}
+int64_t TcpServer::getWallTime(){
+	base::ProtoTime now=clock_.Now();
+	base::TimeDelta delta=now-startTime_;
+	int64_t time=delta.ToMilliseconds();
+	return time;
+}
+void TcpServer::OnTraceData(uint32_t id,uint32_t ts,uint32_t len){
+	if(tracer_){
+		tracer_->OnRecvData(id,ts,len);
 	}
 }
 }

@@ -7,6 +7,7 @@
 
 namespace tcp{
 const int kBufferSize=1500;
+const int klogInterval=5000;//5s;
 const char *done_msg="read all done";
 void ReadEventCallback(struct bufferevent *bev, void *arg){
 	TcpPeer *peer=static_cast<TcpPeer*>(arg);
@@ -28,6 +29,9 @@ TcpPeer::TcpPeer(TcpServer*server,evutil_socket_t fd){
 TcpPeer::~TcpPeer(){
 	BufferFree();
 }
+void TcpPeer::SetTraceRecvFun(TraceReceiveData cb){
+	tracRecv_=cb;
+}
 void TcpPeer::NotifiError(short event){
     if (event & BEV_EVENT_TIMEOUT) {
         printf("Timed out\n");
@@ -46,6 +50,7 @@ void TcpPeer::NotifiError(short event){
 void TcpPeer::NotifiRead(){
     char line[kBufferSize];
     int n=0;
+    int32_t now=server_->getWallTime();
     while (n = bufferevent_read(bev_, line, kBufferSize), n > 0) {
     	if(first_packet_){
     		basic::DataReader reader(line,n);
@@ -55,10 +60,17 @@ void TcpPeer::NotifiRead(){
     		LOG(INFO)<<"recv "<<first<<" "<<second;
     		client_id_=first;
     		totalByte_=second;
+    		ReportRecvLength(now);
+    		nextTimePrintLog_=now+klogInterval;
     		first_packet_=false;
     	}
     	recvByte_+=n;
+    	if(now>=nextTimePrintLog_){
+    		ReportRecvLength(now);
+    		nextTimePrintLog_=now+klogInterval;
+    	}
     	if(recvByte_>=totalByte_){
+    		ReportRecvLength(now);
     		SendDoneSignal();
     	}
     }
@@ -74,6 +86,9 @@ void TcpPeer::Close(){
 		evutil_closesocket(sockfd_);
 		sockfd_=0;
 	}
+	if(!tracRecv_.IsNull()){
+		tracRecv_.Nullify();
+	}
 }
 void TcpPeer::SendDoneSignal(){
 	char buffer[kBufferSize]={0};
@@ -81,6 +96,11 @@ void TcpPeer::SendDoneSignal(){
 	int msglen=strlen(done_msg);
 	memcpy(buffer,done_msg,msglen);
 	bufferevent_write(bev_, buffer, msglen+1);
+}
+void TcpPeer::ReportRecvLength(uint32_t now){
+	if(!tracRecv_.IsNull()){
+		tracRecv_(client_id_,now,recvByte_);
+	}
 }
 }
 

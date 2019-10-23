@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <string>
 #include <errno.h>
 #include <assert.h>
 #include <signal.h>
@@ -18,7 +19,8 @@ int main(){
 	signal(SIGTERM, signal_exit_handler);
     signal(SIGINT, signal_exit_handler);
     signal(SIGTSTP, signal_exit_handler);
-    TcpServer server;
+    std::string log("server_log.txt");
+    TcpServer server(log);
     server.Bind(LISTEN_PORT);
     while(m_running){
         server.Loop();

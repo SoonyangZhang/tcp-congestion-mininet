@@ -32,6 +32,9 @@ void NetworkThread::TriggerTasksLibEvent(){
 void NetworkThread::Dispatch(){
 	::event_base_dispatch(evb_);
 }
+void NetworkThread::Loop(){
+	event_base_loop(evb_, EVLOOP_ONCE | EVLOOP_NONBLOCK);
+}
 void NetworkThread::PostTask(std::unique_ptr<QueuedTask>task)
 {
 	PostDelayedTask(std::move(task),0);

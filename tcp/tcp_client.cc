@@ -28,10 +28,11 @@ void ErrorCallback(struct bufferevent *bev, short event, void *arg){
 	TcpClient *client=static_cast<TcpClient*>(arg);
 	client->NotifiError(event);
 }
-TcpClient::TcpClient(NetworkThread* thread,const char*serv_ip,
+TcpClient::TcpClient(NetworkThread* thread,ActiveClientCounter *counter,const char*serv_ip,
 		uint16_t port,std::string &cc_algo)
 :UsedOnce_(TcpClientThread,this){
 	thread_=thread;
+	counter_=counter;
     if((sockfd_= socket(AF_INET, SOCK_STREAM, 0)) < 0)
     {
         LOG(INFO)<<"socket\n";
@@ -111,6 +112,10 @@ void TcpClient::NotifiRead(){
     if(recv_ack_){
     	LOG(INFO)<<"trans success";
     	Close();
+    	if(counter_){
+    		counter_->Decrease();
+    	}
+
     }
 }
 void TcpClient::NotifiWrite(){

@@ -6,10 +6,13 @@
 #include <event2/event_struct.h>
 #include <event2/event.h>
 #include <event2/bufferevent.h>
+#include "base/proto_time.h"
+#include "tcp_trace.h"
 namespace tcp{
 class TcpPeer;
 class TcpServer{
 public:
+	TcpServer(std::string &name);
 	~TcpServer();
 	void Bind(uint16_t port);
 	void Loop();
@@ -22,6 +25,8 @@ public:
 	void TriggerDelete();
 	void DeletePeerList();
 	void Close();
+	int64_t getWallTime();
+	void OnTraceData(uint32_t id,uint32_t ts,uint32_t len);
 private:
 	void Listen();
 	bool running_{true};
@@ -31,5 +36,8 @@ private:
 	evutil_socket_t listenfd_{0};
 	std::map<evutil_socket_t,std::shared_ptr<TcpPeer>> peers_;
 	std::list<std::shared_ptr<TcpPeer>> waitForDelele_;
+	base::SystemClock clock_;
+	base::ProtoTime startTime_{base::ProtoTime::Zero()};
+	std::shared_ptr<TcpTrace> tracer_;
 };
 }

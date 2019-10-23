@@ -11,6 +11,7 @@ public:
 	NetworkThread();
 	~NetworkThread();
 	void Dispatch();
+	void Loop();
 	void TriggerTasksLibEvent();
 	struct event_base *getEventBase() {
 		return evb_;

@@ -10,14 +10,6 @@ void TcpClientThread(void *arg){
 	TcpClient *client=static_cast<TcpClient*>(arg);
 	client->SynConnect();
 }
-void BaseThreadKiller(void *arg){
-	TcpClient *client=static_cast<TcpClient*>(arg);
-	client->StopUseOnce();
-}
-void ConnectEventCallabck(void *arg){
-	TcpClient *client=static_cast<TcpClient*>(arg);
-	client->NotifiConnect();
-}
 void WriteEventCallback(evutil_socket_t fd, short event, void *arg){
 	TcpClient *client=static_cast<TcpClient*>(arg);
 	client->NotifiWrite();
@@ -67,9 +59,13 @@ void TcpClient::SynConnect(){
     	LOG(INFO)<<"connect success";
     }
 	if(asyconnect_){
-		thread_->PostTask(BaseThreadKiller,(void*)this);
+		thread_->PostTask([this](){
+			StopUseOnce();
+		});
 	}
-	thread_->PostTask(ConnectEventCallabck,(void*)this);
+	thread_->PostTask([this](){
+		NotifiConnect();
+	});
 }
 
 void TcpClient::StopUseOnce(){
@@ -100,6 +96,7 @@ void TcpClient::NotifiRead(){
         line[n] = '\0';
         printf("fd = %u, read from server: %s\n", fd, line);
     }
+    printf("read = %u\n",n);
 }
 void TcpClient::NotifiWrite(){
 	char msg[MAX_LINE]={"hello world"};

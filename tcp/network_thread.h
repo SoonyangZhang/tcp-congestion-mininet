@@ -1,52 +1,44 @@
 #pragma once
 #include "base/lock.h"
 #include <pthread.h>
-#include <utility>
-#include <memory>
 #include <event2/event_struct.h>
 #include <event2/event.h>
-#include <list>
+#include "task_queue.h"
+#include "base/min_heap.h"
 namespace tcp{
-typedef void (*TaskCallback)(void*);
-class Task{
-public:
-	Task(TaskCallback fun,void*arg)
-	:fun_(fun),arg_(arg){}
-	~Task(){}
-	void Execute(){
-		if(fun_){
-			fun_(arg_);
-		}
-	}
-private:
-	TaskCallback fun_{nullptr};
-	void* arg_;
-};
-class TaskQueue{
-public:
-	TaskQueue(){}
-	~TaskQueue(){}
-	void PostTask(TaskCallback fun,void*arg);
-	void RunTasks();
-private:
-	base::AtomicLock lock_;
-	std::list<std::shared_ptr<Task>> tasks_;
-};
 class NetworkThread{
 public:
 	NetworkThread();
 	~NetworkThread();
 	void Dispatch();
 	void TriggerTasksLibEvent();
-	void PostTask(TaskCallback fun,void*arg);
 	struct event_base *getEventBase() {
 		return evb_;
 	}
+	  template <class Closure,
+	            typename std::enable_if<!std::is_convertible<
+	                Closure,
+	                std::unique_ptr<QueuedTask>>::value>::type* = nullptr>
+	    void PostTask(Closure&& closure) {
+	    PostTask(NewClosure(std::forward<Closure>(closure)));
+	  }
+	  template <class Closure,
+	            typename std::enable_if<!std::is_convertible<
+	                Closure,
+	                std::unique_ptr<QueuedTask>>::value>::type* = nullptr>
+	  void PostDelayedTask(Closure&& closure, uint32_t time_ms) {
+	    PostDelayedTask(NewClosure(std::forward<Closure>(closure)), time_ms);
+	  }
+	void PostDelayedTask(std::unique_ptr<QueuedTask> task, uint32_t time_ms);
+	void PostTask(std::unique_ptr<QueuedTask>task);
 	void PollTaskQueue();
 private:
+	void ProcessTasks();
 	void RegisterToLibEvent();
+	void Clear();
 	struct event_base *evb_;
 	struct event event_tasks_;
-	TaskQueue taskQueue_;
+	base::AtomicLock pending_lock_;
+	base::min_heap<TaskEvent> s_heap_;
 };
 }

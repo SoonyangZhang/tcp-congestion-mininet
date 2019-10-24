@@ -11,6 +11,7 @@ include_directories(/usr/local/include)
 LINK_DIRECTORIES(/usr/local/lib)
 include_directories(${CMAKE_SOURCE_DIR}/)
 include_directories(${CMAKE_SOURCE_DIR}/base)
+include_directories(${CMAKE_SOURCE_DIR}/logging)
 include_directories(${CMAKE_SOURCE_DIR}/tcp)
 include_directories(${CMAKE_SOURCE_DIR}/thirdparty)
 set(base_LIB
@@ -39,9 +40,6 @@ set(EXECUTABLE_NAME "t_event_client")
 add_executable(${EXECUTABLE_NAME} ${CMAKE_SOURCE_DIR}/event_client.cc)
 target_link_libraries(${EXECUTABLE_NAME} event)
 
-set(EXECUTABLE_NAME "tcp_info")
-add_executable(${EXECUTABLE_NAME} ${CMAKE_SOURCE_DIR}/tcp_info.cc)
-target_link_libraries(${EXECUTABLE_NAME} base event)
 
 set(EXECUTABLE_NAME "t_cmd")
 add_executable(${EXECUTABLE_NAME} ${CMAKE_SOURCE_DIR}/thirdparty/test2.cpp)

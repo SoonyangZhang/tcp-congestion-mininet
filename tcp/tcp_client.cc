@@ -4,7 +4,7 @@
 #include <unistd.h>
 #include <algorithm>
 #include "base/byte_codec.h"
-#include "base/logging.h"
+#include "logging.h"
 #include "tcp_client.h"
 #include "network_thread.h"
 #include "logging.h"

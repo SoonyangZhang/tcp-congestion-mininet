@@ -10,6 +10,7 @@
 #include "tcp_trace.h"
 namespace tcp{
 class TcpPeer;
+class ActiveClientCounter;
 class TcpServer{
 public:
 	TcpServer(std::string &name);
@@ -19,6 +20,7 @@ public:
 	void Stop();
 	void Accept();
 	void PeerClose(evutil_socket_t);
+	void OnPeerReadDoneMsg();
 	struct event_base* getEventBase(){
 		return evb_;
 	}
@@ -27,6 +29,9 @@ public:
 	void Close();
 	int64_t getWallTime();
 	void OnTraceData(uint32_t id,uint32_t ts,uint32_t len);
+	void RegisterCounter(ActiveClientCounter *counter){
+		counter_=counter;
+	}
 private:
 	void Listen();
 	bool running_{true};
@@ -39,5 +44,6 @@ private:
 	base::SystemClock clock_;
 	base::ProtoTime startTime_{base::ProtoTime::Zero()};
 	std::shared_ptr<TcpTrace> tracer_;
+	ActiveClientCounter *counter_{nullptr};
 };
 }

@@ -57,3 +57,6 @@ target_link_libraries(${EXECUTABLE_NAME} tcp base event  pthread)
 set(EXECUTABLE_NAME "t_task")
 add_executable(${EXECUTABLE_NAME} ${CMAKE_SOURCE_DIR}/task_test.cc)
 target_link_libraries(${EXECUTABLE_NAME} tcp base event  pthread)
+
+set(EXECUTABLE_NAME "tcp_info")
+add_executable(${EXECUTABLE_NAME} ${CMAKE_SOURCE_DIR}/tcp_info.cc)

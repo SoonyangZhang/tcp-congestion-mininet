@@ -8,6 +8,8 @@
 namespace tcp{
 const int kBufferSize=1500;
 const int klogInterval=5000;//5s;
+int kRcvBufferLen = 2*1024*1024*8;
+int kSndBufferLen = 2*1024*1024*8;
 const char *done_msg="read all done";
 void ReadEventCallback(struct bufferevent *bev, void *arg){
 	TcpPeer *peer=static_cast<TcpPeer*>(arg);
@@ -21,10 +23,28 @@ TcpPeer::TcpPeer(TcpServer*server,evutil_socket_t fd){
 	server_=server;
 	sockfd_=fd;
 	evutil_make_socket_nonblocking(sockfd_);
+    SetSendBufSize(kSndBufferLen);
+    SetRecvBufSize(kRcvBufferLen);
 	struct event_base *evb=server_->getEventBase();
 	bev_= bufferevent_socket_new(evb,sockfd_, BEV_OPT_CLOSE_ON_FREE);
     bufferevent_setcb(bev_, ReadEventCallback, NULL, ErrorCallback, (void*)this);
     bufferevent_enable(bev_, EV_READ|EV_WRITE|EV_PERSIST);
+}
+void TcpPeer::SetSendBufSize(int len){
+    if(sockfd_<0){
+        return ;
+    }
+    int nSndBufferLen =len;
+    int nLen          = sizeof(int);
+    setsockopt(sockfd_, SOL_SOCKET, SO_SNDBUF, (char*)&nSndBufferLen, nLen);
+}
+void TcpPeer::SetRecvBufSize(int len){
+    if(sockfd_<0){
+        return ;
+    }
+    int nRcvBufferLen =len;
+    int nLen          = sizeof(int);
+    setsockopt(sockfd_, SOL_SOCKET, SO_RCVBUF, (char*)&nRcvBufferLen, nLen);
 }
 TcpPeer::~TcpPeer(){
 	BufferFree();
@@ -71,7 +91,12 @@ void TcpPeer::NotifiRead(){
     	}
     	if(recvByte_>=totalByte_){
     		ReportRecvLength(now);
-    		SendDoneSignal();
+    		if(!sendReadDone_){
+    			SendDoneSignal();
+    			server_->OnPeerReadDoneMsg();
+    			sendReadDone_=true;
+    		}
+
     	}
     }
 }
@@ -91,6 +116,7 @@ void TcpPeer::Close(){
 	}
 }
 void TcpPeer::SendDoneSignal(){
+	LOG(INFO)<<"read done "<<client_id_;
 	char buffer[kBufferSize]={0};
 	memset(buffer,0,kBufferSize);
 	int msglen=strlen(done_msg);

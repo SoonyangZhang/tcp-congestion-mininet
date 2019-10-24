@@ -22,6 +22,9 @@ public:
 	TcpClient(NetworkThread* thread,ActiveClientCounter *counter,const char*serv_ip,
 			uint16_t port,std::string &cc_algo);
 	~TcpClient();
+	void Bind(const char *local_ip);
+    void SetSendBufSize(int len);
+    void SetRecvBufSize(int len);
 	void setSenderInfo(uint32_t cid,uint32_t length);
 	void AsynConnect();
 	void SynConnect();
@@ -30,15 +33,17 @@ public:
 	void NotifiRead();
 	void NotifiWrite();
 	void NotifiError(short event);
-	void NextWriteEvent(int millis);
+	void NextWriteEvent(int micro);
 	void Close();
 	void BufferFree();
 	bool IsBulkReceivedByPeer(){return recv_ack_;}
 private:
-	void setCongestionAlgo(std::string &cc_algo);
+	void setCongestionAlgo();
 	void IncreaseWriteBytes(int size);
 	int GetBatchSize();
 	int WritePacketInBatch(int length);
+    void StopConectionThread();
+    void NotifiDeactiveMsg();
 	uint32_t client_id_{0};
 	NetworkThread *thread_;
 	ActiveClientCounter *counter_{nullptr};
@@ -54,6 +59,7 @@ private:
 	bool recv_ack_{false};
 	uint32_t sendByte_{0};
 	uint32_t totalByte_{0};
-	std::string cc_algo_;
+	std::string cc_algo_{"cubic"};
+	bool deactive_sent_{false};
 };
 }

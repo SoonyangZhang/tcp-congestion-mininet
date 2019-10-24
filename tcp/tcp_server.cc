@@ -1,8 +1,9 @@
 #include "tcp_server.h"
 #include "tcp_peer.h"
 #include "logging.h"
+#include "tcp_client.h"
 namespace tcp{
-const int kListenBacklog=32;
+const int kListenBacklog=128;
 void AcceptEventCallback(evutil_socket_t listener, short event, void *arg){
 	TcpServer *server=static_cast<TcpServer*>(arg);
 	server->Accept();
@@ -61,6 +62,11 @@ void TcpServer::PeerClose(evutil_socket_t fd){
 		waitForDelele_.push_back(peer);
 		peers_.erase(it);
 		TriggerDelete();
+	}
+}
+void TcpServer::OnPeerReadDoneMsg(){
+	if(counter_){
+		counter_->Decrease();
 	}
 }
 void TcpServer::Loop(){

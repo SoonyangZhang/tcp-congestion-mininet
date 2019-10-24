@@ -8,6 +8,8 @@ class TcpPeer{
 public:
 	TcpPeer(TcpServer*server,evutil_socket_t fd);
 	~TcpPeer();
+    void SetSendBufSize(int len);
+    void SetRecvBufSize(int len);
 	typedef base::Callback<void,uint32_t,uint32_t,uint32_t> TraceReceiveData;
 	void SetTraceRecvFun(TraceReceiveData cb);
 	void NotifiError(short event);
@@ -27,5 +29,6 @@ private:
 	uint32_t totalByte_{0};
 	TraceReceiveData tracRecv_;
 	uint32_t nextTimePrintLog_{0};
+	bool sendReadDone_{false};
 };
 }

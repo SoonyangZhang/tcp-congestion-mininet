@@ -33,32 +33,42 @@ private:
 	int clients_;
 };
 using namespace std;
+int kRcvBufferLen = 1024*1024*8;
+int kSndBufferLen = 2*1024*1024*8;
 int main(int argc, char *argv[]){
 	signal(SIGTERM, signal_exit_handler);
     signal(SIGINT, signal_exit_handler);
     signal(SIGTSTP, signal_exit_handler);
     cmdline::parser a;
-    a.add<string>("host", 'h', "host name", true, "127.0.0.1");
+    a.add<string>("host", 'h', "host name", false, "127.0.0.1");
+    a.add<string>("local", 'l', "local", false, "127.0.0.1");
+    a.add<string>("congestion", 'g', "congestion algo", false, "cubic");
     a.add<int>("port", 'p', "port number", false, 80, cmdline::range(1, 65535));
     a.add<int>("clientid", 'c', "client id", false, 1, cmdline::range(1, 65535));
     a.add<int>("flows", 'f', "connection", false, 1, cmdline::range(1, 65535));
     a.parse_check(argc, argv);
     std::string host=a.get<string>("host");
+    std::string local=a.get<string>("local");
+    std::string cc=a.get<string>("congestion");
     int port=a.get<int>("port");
     int client_id=a.get<int>("clientid");
     int connection=a.get<int>("flows");
     char serv_addr[32]={0};
-    int host_size=host.size();
-    memcpy(serv_addr,host.c_str(),host_size);
-	uint32_t totalSend=10*1024*1024;
+    char client_addr[32]={0};
+    memcpy(serv_addr,host.c_str(),host.size());
+    memcpy(client_addr,local.c_str(),local.size());
+	uint32_t totalSend=100*1024*1024;
+    
 	int i=0;
 	ClientCouner counter(connection);
-    std::string cc("cubic");
 	tcp::NetworkThread loop;
 	loop.TriggerTasksLibEvent();
 	std::list<std::shared_ptr<tcp::TcpClient>> clients;
 	for(i=0;i<connection;i++){
 		std::shared_ptr<tcp::TcpClient> client(new tcp::TcpClient(&loop,&counter,serv_addr,port,cc));
+		client->Bind(client_addr);
+        client->SetSendBufSize(kSndBufferLen);
+        client->SetRecvBufSize(kRcvBufferLen);
 		client->setSenderInfo(client_id,totalSend);
 		client->AsynConnect();
 		client_id++;

@@ -10,7 +10,7 @@
 #include "logging.h"
 namespace tcp{
 const int MAX_LINE=1400;
-const int kPacketBatchSize=10;
+const int kPacketBatchSize=20;
 static const size_t TCP_CC_NAME_MAX = 16;
 void TcpClientThread(void *arg){
 	TcpClient *client=static_cast<TcpClient*>(arg);
@@ -33,12 +33,7 @@ TcpClient::TcpClient(NetworkThread* thread,ActiveClientCounter *counter,const ch
 :UsedOnce_(TcpClientThread,this){
 	thread_=thread;
 	counter_=counter;
-    if((sockfd_= socket(AF_INET, SOCK_STREAM, 0)) < 0)
-    {
-        LOG(INFO)<<"socket\n";
-        return;
-    }
-    setCongestionAlgo(cc_algo);
+	cc_algo_=cc_algo;
     bzero(&servaddr_, sizeof(servaddr_));
     servaddr_.sin_family = AF_INET;
     servaddr_.sin_port = htons(port);
@@ -47,11 +42,46 @@ TcpClient::TcpClient(NetworkThread* thread,ActiveClientCounter *counter,const ch
     	LOG(INFO)<<"inet_ntop\n";
         return ;
     }
-    LOG(INFO)<<"fd "<<sockfd_;
 }
 TcpClient::~TcpClient(){
 	Close();
 	BufferFree();
+}
+void TcpClient::Bind(const char *local_ip){
+    if((sockfd_= socket(AF_INET, SOCK_STREAM, 0)) < 0)
+    {
+        LOG(INFO)<<"socket\n";
+        return;
+    }
+    struct sockaddr_in localaddr;
+    bzero(&localaddr, sizeof(localaddr));
+    localaddr.sin_family = AF_INET;
+    localaddr.sin_addr.s_addr = inet_addr("192.168.1.100");
+    localaddr.sin_port = 0;  // Any local port will do
+    if(inet_pton(AF_INET, local_ip, &localaddr.sin_addr) < 1)
+    {
+    	LOG(INFO)<<"inet_ntop\n";
+        return ;
+    }
+    bind(sockfd_, (struct sockaddr *)&localaddr, sizeof(localaddr));
+	setCongestionAlgo();
+}
+void TcpClient::SetSendBufSize(int len){
+    if(sockfd_<0){
+        return ;
+    }
+    
+    int nSndBufferLen =len;
+    int nLen          = sizeof(int);
+    setsockopt(sockfd_, SOL_SOCKET, SO_SNDBUF, (char*)&nSndBufferLen, nLen);
+}
+void TcpClient::SetRecvBufSize(int len){
+    if(sockfd_<0){
+        return ;
+    }
+    int nRcvBufferLen =len;
+    int nLen          = sizeof(int);
+    setsockopt(sockfd_, SOL_SOCKET, SO_RCVBUF, (char*)&nRcvBufferLen, nLen);
 }
 void TcpClient::setSenderInfo(uint32_t cid,uint32_t length){
 	client_id_=cid;
@@ -68,6 +98,11 @@ void TcpClient::AsynConnect(){
 }
 void TcpClient::SynConnect(){
 	struct event_base *evb=thread_->getEventBase();
+	if(sockfd_<0){
+		LOG(INFO)<<"Call Bind First";
+        StopConectionThread();
+		return ;
+	}
     if(connect(sockfd_, (struct sockaddr *) &servaddr_, sizeof(servaddr_)) < 0)
     {
     	LOG(INFO)<<"connect error";
@@ -75,16 +110,19 @@ void TcpClient::SynConnect(){
     	connected_=true;
     	LOG(INFO)<<"connect success";
     }
+    thread_->PostTask([this](){
+		NotifiConnect();
+	});
+    StopConectionThread();
+}
+void TcpClient::StopConectionThread(){
 	if(asyconnect_){
+        asyconnect_=false;
 		thread_->PostTask([this](){
 			StopUseOnce();
 		});
 	}
-	thread_->PostTask([this](){
-		NotifiConnect();
-	});
 }
-
 void TcpClient::StopUseOnce(){
 	UsedOnce_.Stop();
 }
@@ -112,10 +150,7 @@ void TcpClient::NotifiRead(){
     if(recv_ack_){
     	LOG(INFO)<<"trans success";
     	Close();
-    	if(counter_){
-    		counter_->Decrease();
-    	}
-
+    	NotifiDeactiveMsg();
     }
 }
 void TcpClient::NotifiWrite(){
@@ -133,7 +168,7 @@ void TcpClient::NotifiWrite(){
 	    	IncreaseWriteBytes(MAX_LINE);
 	    }
 		first_sent_=true;
-		int batch=GetBatchSize();
+		int batch=GetBatchSize()*3;
 	    int write=WritePacketInBatch(batch);
 	    IncreaseWriteBytes(write);
 	}else{
@@ -142,8 +177,8 @@ void TcpClient::NotifiWrite(){
 	    IncreaseWriteBytes(write);
 	}
 	if(sendByte_<totalByte_){
-		uint32_t millis=random_.nextInt(0,100);
-		NextWriteEvent(millis);
+		uint32_t micro=random_.nextInt(0,1000); //0-1 ms
+		NextWriteEvent(micro);
 	}
 }
 void TcpClient::NotifiError(short event){
@@ -159,16 +194,17 @@ void TcpClient::NotifiError(short event){
         Close();
     }
 }
-void TcpClient::NextWriteEvent(int millis){
+void TcpClient::NextWriteEvent(int micro){
 	struct timeval tv;
 	struct event_base *evb=thread_->getEventBase();
 	event_assign(&write_event_, evb, -1, 0,WriteEventCallback, (void*)this);
 	evutil_timerclear(&tv);
-	tv.tv_sec = millis/1000;
-	tv.tv_usec=(millis%1000)*1000;
+	tv.tv_sec = micro/(1000*1000);
+	tv.tv_usec=micro%(1000*1000);
 	event_add(&write_event_, &tv);
 }
 void TcpClient::Close(){
+	NotifiDeactiveMsg();
 	if(sockfd_>0){
 		evutil_closesocket(sockfd_);
 		sockfd_=0;
@@ -180,8 +216,7 @@ void TcpClient::BufferFree(){
 		bev_=nullptr;
 	}
 }
-void TcpClient::setCongestionAlgo(std::string &cc_algo){
-	cc_algo_=cc_algo;
+void TcpClient::setCongestionAlgo(){
     char optval[TCP_CC_NAME_MAX]={0};
     memset(optval,0,TCP_CC_NAME_MAX);
     int copy=std::min(TCP_CC_NAME_MAX,cc_algo_.size());
@@ -219,5 +254,13 @@ int TcpClient::WritePacketInBatch(int length){
 	    }
 	}
 	return total;
+}
+void TcpClient::NotifiDeactiveMsg(){
+	if(!deactive_sent_){
+    	if(counter_){
+    		counter_->Decrease();
+    	}
+		deactive_sent_=true;
+	}
 }
 }

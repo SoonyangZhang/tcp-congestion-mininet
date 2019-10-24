@@ -1,9 +1,15 @@
 #!/usr/bin/python
+import smtplib
+from email.mime.text import MIMEText
+from email.header import Header
+
+
 from mininet.topo import Topo
 from mininet.net import Mininet
 from mininet.cli import CLI
 from mininet.link import TCLink
 import time
+import datetime
 import subprocess
 import os,signal
 import sys
@@ -12,7 +18,7 @@ import sys
 # h1            r3---h2
 #             
 #
-bottleneckbw=4
+bottleneckbw=120
 nonbottlebw=500;  
 max_queue_size =bottleneckbw*1000*100/(1500*8) 
 net = Mininet( cleanup=True )
@@ -49,14 +55,15 @@ net.start()
 time.sleep(1)
 print "host1 ip",h1.IP()
 print "host2 ip", h2.IP()
+starttime = datetime.datetime.now()
 serv_port=3333
 log_name="server_test.txt"
 server_cmd_common="./build/echo_server  -p %s -l %s"
 server_cmd=server_cmd_common%(str(serv_port),log_name)
-client_cmd_common="./build/echo_client -h %s  -p %s -c %s -f %s"
+client_cmd_common="./build/echo_client -l %s -h %s -p %s -c %s -f %s"
 client_id=1
-flows=3
-client_cmd=client_cmd_common%(h2.IP(),str(serv_port),str(client_id),str(flows))
+flows=50
+client_cmd=client_cmd_common%(h1.IP(),h2.IP(),str(serv_port),str(client_id),str(flows))
 server_p=h2.popen(server_cmd)
 client_p=h1.popen(client_cmd)
 while 1:
@@ -69,4 +76,27 @@ os.killpg(os.getpgid(server_p.pid),signal.SIGTERM)
 server_p.wait();
 net.stop()
 print "stop"
+endtime = datetime.datetime.now()
+duringtime = endtime - starttime
+'''
+msg_from = '865678017@qq.com'  
+passwd = 'ask qq for auth code'
+msg_to = '865678017@qq.com'  
+
+subject = "python tcp rate test"  
+content = "tcp connection running time: "+str(duringtime.seconds)
+msg = MIMEText(content)
+msg['Subject'] = subject
+msg['From'] = msg_from
+msg['To'] = msg_to
+try:
+    s = smtplib.SMTP_SSL("smtp.qq.com", 465)
+    s.login(msg_from, passwd)
+    s.sendmail(msg_from, msg_to, msg.as_string())
+    print "success"
+except s.SMTPException, e:
+    print "error"
+finally:
+    s.quit()
+'''
 

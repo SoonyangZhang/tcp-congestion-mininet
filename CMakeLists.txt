@@ -12,6 +12,7 @@ LINK_DIRECTORIES(/usr/local/lib)
 include_directories(${CMAKE_SOURCE_DIR}/)
 include_directories(${CMAKE_SOURCE_DIR}/base)
 include_directories(${CMAKE_SOURCE_DIR}/tcp)
+include_directories(${CMAKE_SOURCE_DIR}/thirdparty)
 set(base_LIB
 base/byte_codec.cc
 base/base_thread.cc
@@ -42,9 +43,8 @@ set(EXECUTABLE_NAME "tcp_info")
 add_executable(${EXECUTABLE_NAME} ${CMAKE_SOURCE_DIR}/tcp_info.cc)
 target_link_libraries(${EXECUTABLE_NAME} base event)
 
-set(EXECUTABLE_NAME "timer")
-add_executable(${EXECUTABLE_NAME} ${CMAKE_SOURCE_DIR}/timer.cc)
-target_link_libraries(${EXECUTABLE_NAME} tcp base event pthread)
+set(EXECUTABLE_NAME "t_cmd")
+add_executable(${EXECUTABLE_NAME} ${CMAKE_SOURCE_DIR}/thirdparty/test2.cpp)
 
 set(EXECUTABLE_NAME "echo_client")
 add_executable(${EXECUTABLE_NAME} ${CMAKE_SOURCE_DIR}/echo_client.cc)

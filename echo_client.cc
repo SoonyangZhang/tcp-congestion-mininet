@@ -3,12 +3,12 @@
 #include <string>
 #include <utility>
 #include <list>
+#include <memory.h>
+#include "cmdline.h"
 #include "base/proto_time.h"
 #include "tcp_client.h"
 #include "network_thread.h"
 #include "logging.h"
-const char *serv_addr="10.0.5.2";
-#define SERV_PORT 8888
 bool m_running=true;
 void signal_exit_handler(int sig)
 {
@@ -32,21 +32,33 @@ public:
 private:
 	int clients_;
 };
-int main(){
+using namespace std;
+int main(int argc, char *argv[]){
 	signal(SIGTERM, signal_exit_handler);
     signal(SIGINT, signal_exit_handler);
     signal(SIGTSTP, signal_exit_handler);
-	uint32_t client_id=1;
-	uint32_t totalSend=100*1024*1024;
+    cmdline::parser a;
+    a.add<string>("host", 'h', "host name", true, "127.0.0.1");
+    a.add<int>("port", 'p', "port number", false, 80, cmdline::range(1, 65535));
+    a.add<int>("clientid", 'c', "client id", false, 1, cmdline::range(1, 65535));
+    a.add<int>("flows", 'f', "connection", false, 1, cmdline::range(1, 65535));
+    a.parse_check(argc, argv);
+    std::string host=a.get<string>("host");
+    int port=a.get<int>("port");
+    int client_id=a.get<int>("clientid");
+    int connection=a.get<int>("flows");
+    char serv_addr[32]={0};
+    int host_size=host.size();
+    memcpy(serv_addr,host.c_str(),host_size);
+	uint32_t totalSend=10*1024*1024;
 	int i=0;
-	int connection=2;
 	ClientCouner counter(connection);
     std::string cc("cubic");
 	tcp::NetworkThread loop;
 	loop.TriggerTasksLibEvent();
 	std::list<std::shared_ptr<tcp::TcpClient>> clients;
 	for(i=0;i<connection;i++){
-		std::shared_ptr<tcp::TcpClient> client(new tcp::TcpClient(&loop,&counter,serv_addr,SERV_PORT,cc));
+		std::shared_ptr<tcp::TcpClient> client(new tcp::TcpClient(&loop,&counter,serv_addr,port,cc));
 		client->setSenderInfo(client_id,totalSend);
 		client->AsynConnect();
 		client_id++;
@@ -58,7 +70,5 @@ int main(){
 			break;
 		}
 	}
-
-	LOG(INFO)<<"end";
 	return 0;
 }

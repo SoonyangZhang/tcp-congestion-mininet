@@ -4,6 +4,9 @@ from mininet.net import Mininet
 from mininet.cli import CLI
 from mininet.link import TCLink
 import time
+import subprocess
+import os,signal
+import sys
 #    ___r1____
 #   /          \0  1
 # h1            r3---h2
@@ -44,6 +47,26 @@ h2.cmd("route add default gw 10.0.5.1")
 
 net.start()
 time.sleep(1)
-CLI(net)
+print "host1 ip",h1.IP()
+print "host2 ip", h2.IP()
+serv_port=3333
+log_name="server_test.txt"
+server_cmd_common="./build/echo_server  -p %s -l %s"
+server_cmd=server_cmd_common%(str(serv_port),log_name)
+client_cmd_common="./build/echo_client -h %s  -p %s -c %s -f %s"
+client_id=1
+flows=3
+client_cmd=client_cmd_common%(h2.IP(),str(serv_port),str(client_id),str(flows))
+server_p=h2.popen(server_cmd)
+client_p=h1.popen(client_cmd)
+while 1:
+    ret=subprocess.Popen.poll(client_p)
+    if ret is None:
+        continue
+    else:
+        break
+os.killpg(os.getpgid(server_p.pid),signal.SIGTERM)
+server_p.wait();
 net.stop()
+print "stop"
 

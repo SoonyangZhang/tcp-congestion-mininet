@@ -11,7 +11,7 @@ void TcpTrace::OnRecvData(uint32_t client_id,uint32_t ts,uint32_t len){
 	if(log_.is_open()){
 		char line [256];
 		memset(line,0,256);
-		sprintf (line, "%d %16d,%16d",
+		sprintf (line, "%d %16d %16d",
 				client_id,ts,len);
 		log_<<line<<std::endl;
 	}

@@ -1,8 +1,6 @@
 #pragma once
 #include "base/lock.h"
-#include <pthread.h>
-#include <event2/event_struct.h>
-#include <event2/event.h>
+#include "ae.h"
 #include "task_queue.h"
 #include "base/min_heap.h"
 namespace tcp{
@@ -10,10 +8,8 @@ class NetworkThread{
 public:
 	NetworkThread();
 	~NetworkThread();
-	void Dispatch();
-	void Loop();
-	void TriggerTasksLibEvent();
-	struct event_base *getEventBase() {
+	void LoopOnce();
+	aeEventLoop *getEventBase() {
 		return evb_;
 	}
 	  template <class Closure,
@@ -35,10 +31,8 @@ public:
 	void PollTaskQueue();
 private:
 	void ProcessTasks();
-	void RegisterToLibEvent();
 	void Clear();
-	struct event_base *evb_;
-	struct event event_tasks_;
+	aeEventLoop *evb_{nullptr};
 	base::AtomicLock pending_lock_;
 	base::min_heap<TaskEvent> s_heap_;
 };

@@ -1,4 +1,3 @@
-#include <event2/thread.h>
 #include <time.h>
 #include <list>
 #include "proto_time.h"
@@ -6,34 +5,29 @@
 #include "logging.h"
 using namespace base;
 namespace tcp{
-void RunTaskCallback(evutil_socket_t fd, short event, void *arg){
+int RunTaskCallback(struct aeEventLoop *eventLoop, long long id, void *arg){
 	NetworkThread *thread=static_cast<NetworkThread*>(arg);
 	thread->PollTaskQueue();
+	return 1;//ms
 }
 NetworkThread::NetworkThread(){
-	evthread_use_pthreads();
-	evb_=::event_base_new();
+	evb_=aeCreateEventLoop(1024*10);
+	aeSetDontWait(evb_,1);
+	aeCreateTimeEvent(evb_, 1, RunTaskCallback, (void*)this, NULL);
 	min_heap_ctor(&s_heap_);
 }
 NetworkThread::~NetworkThread(){
+	if(evb_){
+		aeDeleteEventLoop(evb_);
+		evb_=nullptr;
+	}
 	Clear();
 	min_heap_dtor(&s_heap_);
 }
-void NetworkThread::RegisterToLibEvent(){
-	struct timeval tv;
-	event_assign(&event_tasks_, evb_, -1, 0, RunTaskCallback, (void*)this);
-	evutil_timerclear(&tv);
-	tv.tv_sec = 0;
-	event_add(&event_tasks_, &tv);
-}
-void NetworkThread::TriggerTasksLibEvent(){
-	RegisterToLibEvent();
-}
-void NetworkThread::Dispatch(){
-	::event_base_dispatch(evb_);
-}
-void NetworkThread::Loop(){
-	event_base_loop(evb_, EVLOOP_ONCE | EVLOOP_NONBLOCK);
+void NetworkThread::LoopOnce(){
+	if(evb_){
+		aeLoopOnce(evb_);
+	}
 }
 void NetworkThread::PostTask(std::unique_ptr<QueuedTask>task)
 {
@@ -50,7 +44,6 @@ void NetworkThread::PostDelayedTask(std::unique_ptr<QueuedTask> task, uint32_t t
 }
 void NetworkThread::PollTaskQueue(){
 	ProcessTasks();
-	RegisterToLibEvent();
 }
 void NetworkThread::ProcessTasks(){
     uint64_t time_ms=base::TimeMillis();

@@ -50,9 +50,9 @@ int main(int argc, char *argv[]){
     PeerCouner counter(connection);
     TcpServer server(log);
     server.RegisterCounter(&counter);
-    server.Bind(port);
+    server.CreateSocket(port);
     while(m_running){
-        server.Loop();
+        server.LoopOnce();
         if(counter.IsAllDeactive()){
             break;
         }

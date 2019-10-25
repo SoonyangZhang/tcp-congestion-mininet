@@ -5,7 +5,7 @@ SET(CMAKE_CXX_FLAGS_DEBUG "$ENV{CXXFLAGS} -O0 -Wall -g -ggdb")
 set(CMAKE_CXX_FLAGS "-fPIC")  
 add_definitions(-D__STDC_FORMAT_MACROS)
 add_definitions(-D_GLIBCXX_USE_CXX11_ABI=0)
-
+add_definitions(-D__linux__)
 
 include_directories(/usr/local/include)
 LINK_DIRECTORIES(/usr/local/lib)
@@ -14,6 +14,7 @@ include_directories(${CMAKE_SOURCE_DIR}/base)
 include_directories(${CMAKE_SOURCE_DIR}/logging)
 include_directories(${CMAKE_SOURCE_DIR}/tcp)
 include_directories(${CMAKE_SOURCE_DIR}/thirdparty)
+include_directories(${CMAKE_SOURCE_DIR}/thirdparty/redisnet/)
 set(base_LIB
 base/byte_codec.cc
 base/base_thread.cc
@@ -32,13 +33,13 @@ tcp/tcp_trace.cc
 )
 add_library(tcp STATIC ${tcp_LIB})
 
-set(EXECUTABLE_NAME "t_event_server")
-add_executable(${EXECUTABLE_NAME} ${CMAKE_SOURCE_DIR}/event_server.cc)
-target_link_libraries(${EXECUTABLE_NAME} event)
+set(redisnet_LIB
+thirdparty/redisnet/ae.c
+thirdparty/redisnet/anet.c
+thirdparty/redisnet/zmalloc.c
+)
+add_library(redisnet STATIC ${redisnet_LIB})
 
-set(EXECUTABLE_NAME "t_event_client")
-add_executable(${EXECUTABLE_NAME} ${CMAKE_SOURCE_DIR}/event_client.cc)
-target_link_libraries(${EXECUTABLE_NAME} event)
 
 
 set(EXECUTABLE_NAME "t_cmd")
@@ -46,17 +47,24 @@ add_executable(${EXECUTABLE_NAME} ${CMAKE_SOURCE_DIR}/thirdparty/test2.cpp)
 
 set(EXECUTABLE_NAME "echo_client")
 add_executable(${EXECUTABLE_NAME} ${CMAKE_SOURCE_DIR}/echo_client.cc)
-target_link_libraries(${EXECUTABLE_NAME} tcp base event  pthread)
+target_link_libraries(${EXECUTABLE_NAME} tcp redisnet base  pthread)
 
+set(EXECUTABLE_NAME "block_client")
+add_executable(${EXECUTABLE_NAME} ${CMAKE_SOURCE_DIR}/block_client.cc)
+target_link_libraries(${EXECUTABLE_NAME} base)
 
 set(EXECUTABLE_NAME "echo_server")
 add_executable(${EXECUTABLE_NAME} ${CMAKE_SOURCE_DIR}/echo_server.cc)
-target_link_libraries(${EXECUTABLE_NAME} tcp base event  pthread)
+target_link_libraries(${EXECUTABLE_NAME} tcp redisnet base   pthread)
 
 
 set(EXECUTABLE_NAME "t_task")
 add_executable(${EXECUTABLE_NAME} ${CMAKE_SOURCE_DIR}/task_test.cc)
-target_link_libraries(${EXECUTABLE_NAME} tcp base event  pthread)
+target_link_libraries(${EXECUTABLE_NAME} tcp redisnet base  pthread)
 
 set(EXECUTABLE_NAME "tcp_info")
 add_executable(${EXECUTABLE_NAME} ${CMAKE_SOURCE_DIR}/tcp_info.cc)
+
+set(EXECUTABLE_NAME "t_redis")
+add_executable(${EXECUTABLE_NAME} ${CMAKE_SOURCE_DIR}/redis-main.cc)
+target_link_libraries(${EXECUTABLE_NAME}  tcp redisnet base)

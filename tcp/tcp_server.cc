@@ -1,16 +1,19 @@
+#include <unistd.h>
 #include "tcp_server.h"
 #include "tcp_peer.h"
 #include "logging.h"
 #include "tcp_client.h"
+#include "anet.h"
 namespace tcp{
 const int kListenBacklog=128;
-void AcceptEventCallback(evutil_socket_t listener, short event, void *arg){
+void AcceptTcpHandler(aeEventLoop *el, int fd, void *arg, int mask){
 	TcpServer *server=static_cast<TcpServer*>(arg);
 	server->Accept();
 }
-void DeleteEventCallback(evutil_socket_t fd, short event, void *arg){
+int DeletePeerTimer(aeEventLoop *el, long long id, void *arg){
 	TcpServer *server=static_cast<TcpServer*>(arg);
 	server->DeletePeerList();
+	return 0;
 }
 TcpServer::TcpServer(std::string &name){
 	startTime_=clock_.Now();
@@ -18,28 +21,26 @@ TcpServer::TcpServer(std::string &name){
 }
 TcpServer::~TcpServer(){
 	if(evb_){
-		event_base_free(evb_);
+		aeDeleteEventLoop(evb_);
 		evb_=nullptr;
 	}
 	Close();
 }
-void TcpServer::Bind(uint16_t port){
-    listenfd_ = socket(AF_INET, SOCK_STREAM, 0);
+void TcpServer::CreateSocket(uint16_t port){
+	char *bind_ip="0.0.0.0";
+	listenfd_= anetTcpServer(nullptr,port, bind_ip,kListenBacklog);
     CHECK(listenfd_ > 0);
-    evutil_make_listen_socket_reuseable(listenfd_);
-
-    struct sockaddr_in sin;
-    sin.sin_family = AF_INET;
-    sin.sin_addr.s_addr = 0;
-    sin.sin_port = htons(port);
-    if (bind(listenfd_, (struct sockaddr *)&sin, sizeof(sin)) < 0) {
-        perror("bind");
-        return;
+    anetNonBlock(nullptr,listenfd_);
+    printf("Listening...\n");
+    evb_=aeCreateEventLoop(1024*10);
+    if( aeCreateFileEvent(evb_,listenfd_, AE_READABLE,
+        AcceptTcpHandler, (void*)this) == AE_ERR ){
+    	LOG(INFO)<<"listen error";
+    	return ;
     }
-    Listen();
 }
 void TcpServer::Accept(){
-    evutil_socket_t fd;
+    int fd;
     struct sockaddr_in sin;
     socklen_t slen = sizeof(sin);
     fd = accept(listenfd_, (struct sockaddr *)&sin, &slen);
@@ -55,13 +56,13 @@ void TcpServer::Accept(){
     peer->SetTraceRecvFun(base::MakeCallback(&TcpServer::OnTraceData,this));
     peers_.insert(std::make_pair(fd,peer));
 }
-void TcpServer::PeerClose(evutil_socket_t fd){
+void TcpServer::PeerClose(int fd){
 	auto it=peers_.find(fd);
 	if(it!=peers_.end()){
 		std::shared_ptr<TcpPeer> peer=it->second;
 		waitForDelele_.push_back(peer);
 		peers_.erase(it);
-		TriggerDelete();
+		aeCreateTimeEvent(evb_, 1, DeletePeerTimer, (void*)this, NULL);
 	}
 }
 void TcpServer::OnPeerReadDoneMsg(){
@@ -69,31 +70,10 @@ void TcpServer::OnPeerReadDoneMsg(){
 		counter_->Decrease();
 	}
 }
-void TcpServer::Loop(){
-	if(running_){
-		event_base_loop(evb_, EVLOOP_ONCE | EVLOOP_NONBLOCK);
+void TcpServer::LoopOnce(){
+	if(evb_){
+		aeLoopOnce(evb_);
 	}
-}
-void TcpServer::Stop(){
-	running_=false;
-}
-void TcpServer::Listen(){
-    if (listen(listenfd_, kListenBacklog) < 0) {
-        perror("listen");
-        return;
-    }
-    printf ("Listening...\n");
-    evutil_make_socket_nonblocking(listenfd_);
-    evb_= event_base_new();
-    event_assign(&listen_event_, evb_,listenfd_,EV_READ|EV_PERSIST,AcceptEventCallback, (void*)this);
-    event_add(&listen_event_, NULL);
-}
-void TcpServer::TriggerDelete(){
-	struct timeval tv;
-	event_assign(&delete_event_, evb_, -1, 0,DeleteEventCallback, (void*)this);
-	evutil_timerclear(&tv);
-	tv.tv_sec =0;
-	event_add(&delete_event_, &tv);
 }
 void TcpServer::DeletePeerList(){
 	while(!waitForDelele_.empty()){
@@ -103,7 +83,7 @@ void TcpServer::DeletePeerList(){
 }
 void TcpServer::Close(){
 	if(listenfd_>0){
-		evutil_closesocket(listenfd_);
+		close(listenfd_);
 		listenfd_=0;
 	}
 }

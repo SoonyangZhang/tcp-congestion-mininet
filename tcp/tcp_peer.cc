@@ -1,34 +1,38 @@
 #include <memory.h>
 #include <string.h>
+#include <unistd.h>
+
+#include <netinet/in.h>
+#include <sys/socket.h>
+#include <arpa/inet.h>
 #include "logging.h"
 #include "base/byte_codec.h"
 #include "tcp_peer.h"
 #include "tcp_server.h"
-
+#include "anet.h"
 namespace tcp{
 const int kBufferSize=1500;
 const int klogInterval=5000;//5s;
 int kRcvBufferLen = 2*1024*1024*8;
 int kSndBufferLen = 2*1024*1024*8;
 const char *done_msg="read all done";
-void ReadEventCallback(struct bufferevent *bev, void *arg){
+void ReadEventCallback(aeEventLoop *el, int fd, void *arg, int mask){
 	TcpPeer *peer=static_cast<TcpPeer*>(arg);
 	peer->NotifiRead();
 }
-void ErrorCallback(struct bufferevent *bev, short event, void *arg){
-	TcpPeer *peer=static_cast<TcpPeer*>(arg);
-	peer->NotifiError(event);
-}
-TcpPeer::TcpPeer(TcpServer*server,evutil_socket_t fd){
+TcpPeer::TcpPeer(TcpServer*server,int fd){
 	server_=server;
 	sockfd_=fd;
-	evutil_make_socket_nonblocking(sockfd_);
-    SetSendBufSize(kSndBufferLen);
-    SetRecvBufSize(kRcvBufferLen);
-	struct event_base *evb=server_->getEventBase();
-	bev_= bufferevent_socket_new(evb,sockfd_, BEV_OPT_CLOSE_ON_FREE);
-    bufferevent_setcb(bev_, ReadEventCallback, NULL, ErrorCallback, (void*)this);
-    bufferevent_enable(bev_, EV_READ|EV_WRITE|EV_PERSIST);
+	anetNonBlock(nullptr,sockfd_);
+    //SetSendBufSize(kSndBufferLen);
+    //SetRecvBufSize(kRcvBufferLen);
+	aeEventLoop *evb=server_->getEventBase();
+    if( aeCreateFileEvent(evb,sockfd_, AE_READABLE,
+    		ReadEventCallback, (void*)this) == AE_ERR )
+    {
+        LOG(INFO)<<"create read event failed";
+        Close();
+    }
 }
 void TcpPeer::SetSendBufSize(int len){
     if(sockfd_<0){
@@ -47,33 +51,30 @@ void TcpPeer::SetRecvBufSize(int len){
     setsockopt(sockfd_, SOL_SOCKET, SO_RCVBUF, (char*)&nRcvBufferLen, nLen);
 }
 TcpPeer::~TcpPeer(){
-	BufferFree();
+  Close();
 }
 void TcpPeer::SetTraceRecvFun(TraceReceiveData cb){
 	tracRecv_=cb;
 }
-void TcpPeer::NotifiError(short event){
-    if (event & BEV_EVENT_TIMEOUT) {
-        printf("Timed out\n");
-    }
-    else if (event & BEV_EVENT_EOF) {
-        printf("connection closed\n");
-        server_->PeerClose(sockfd_);
-        Close();
-    }
-    else if (event & BEV_EVENT_ERROR) {
-        printf("some other error\n");
-        server_->PeerClose(sockfd_);
-        Close();
-    }
-}
 void TcpPeer::NotifiRead(){
     char line[kBufferSize];
-    int n=0;
+    int res=0;
     int32_t now=server_->getWallTime();
-    while (n = bufferevent_read(bev_, line, kBufferSize), n > 0) {
+    while(true){
+        res = read(sockfd_, line, kBufferSize);
+        if( res <= 0 )
+        {
+        	if(errno == EWOULDBLOCK || errno == EAGAIN){
+        		//no data;
+        	}else{
+            	LOG(INFO)<<"read error";
+            	server_->PeerClose(sockfd_);
+                Close();
+        	}
+            break;
+        }
     	if(first_packet_){
-    		basic::DataReader reader(line,n);
+    		basic::DataReader reader(line,res);
     		uint32_t first,second;
     		reader.ReadUInt32(&first);
     		reader.ReadUInt32(&second);
@@ -84,31 +85,24 @@ void TcpPeer::NotifiRead(){
     		nextTimePrintLog_=now+klogInterval;
     		first_packet_=false;
     	}
-    	recvByte_+=n;
+    	recvByte_+=res;
     	if(now>=nextTimePrintLog_){
     		ReportRecvLength(now);
     		nextTimePrintLog_=now+klogInterval;
     	}
     	if(recvByte_>=totalByte_){
-    		ReportRecvLength(now);
-    		if(!sendReadDone_){
-    			SendDoneSignal();
-    			server_->OnPeerReadDoneMsg();
-    			sendReadDone_=true;
-    		}
-
+    	    ReportRecvLength(now);
+    	    if(!sendReadDone_){
+    	    	SendDoneSignal();
+    	    	server_->OnPeerReadDoneMsg();
+    	    	sendReadDone_=true;
+    	    }
     	}
     }
 }
-void TcpPeer::BufferFree(){
-	if(bev_){
-		bufferevent_free(bev_);
-		bev_=nullptr;
-	}
-}
 void TcpPeer::Close(){
 	if(sockfd_>0){
-		evutil_closesocket(sockfd_);
+		close(sockfd_);
 		sockfd_=0;
 	}
 	if(!tracRecv_.IsNull()){
@@ -121,12 +115,30 @@ void TcpPeer::SendDoneSignal(){
 	memset(buffer,0,kBufferSize);
 	int msglen=strlen(done_msg);
 	memcpy(buffer,done_msg,msglen);
-	bufferevent_write(bev_, buffer, msglen+1);
+	WriteMessage(buffer, msglen+1);
 }
 void TcpPeer::ReportRecvLength(uint32_t now){
 	if(!tracRecv_.IsNull()){
 		tracRecv_(client_id_,now,recvByte_);
 	}
+}
+// ret wirte length
+int TcpPeer::WriteMessage(const char *msg, int len){
+	int written_bytes=0;
+	if(sockfd_<=0){
+		return written_bytes;
+	}
+	written_bytes=write(sockfd_,msg,len);
+    if(written_bytes<=0){
+        if(errno == EWOULDBLOCK || errno == EAGAIN){
+		written_bytes=0;
+        }else{
+	    written_bytes=0;
+            LOG(INFO)<<"write error "<<errno;
+            CHECK(0);
+        }
+    }
+	return written_bytes;
 }
 }
 

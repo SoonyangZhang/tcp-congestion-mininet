@@ -18,7 +18,7 @@ import sys
 # h1            r3---h2
 #  \           /2
 #   ---r2-----
-bottleneckbw=16
+bottleneckbw=150
 nonbottlebw=500;
 max_rtt=300
 bottleneckQ=bottleneckbw*1000*max_rtt/(1500*8)
@@ -88,8 +88,8 @@ local_ip2="10.0.3.1"
 serv_port=3333
 congestion="bbr"
 log_name="server_test.txt"
-flows1=2
-flows2=2
+flows1=25
+flows2=25
 total_flows=flows1+flows2
 server_cmd_common="./build/echo_server  -p %s -l %s -f %s"
 server_cmd=server_cmd_common%(str(serv_port),log_name,str(total_flows))
@@ -131,6 +131,7 @@ if server_done==False:
     server_p.wait();
 net.stop()
 print "stop"
+
 msg_from = '865678017@qq.com'  
 passwd = 'ask qq for auth code'
 msg_to = '865678017@qq.com'  

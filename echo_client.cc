@@ -5,7 +5,7 @@
 #include <list>
 #include <memory.h>
 #include "cmdline.h"
-#include "base/proto_time.h"
+#include "proto_time.h"
 #include "tcp_client.h"
 #include "network_thread.h"
 #include "logging.h"
@@ -57,25 +57,25 @@ int main(int argc, char *argv[]){
     char client_addr[32]={0};
     memcpy(serv_addr,host.c_str(),host.size());
     memcpy(client_addr,local.c_str(),local.size());
-	uint32_t totalSend=100*1024*1024;
+	uint32_t totalSend=200*1024*1024;
     
 	int i=0;
 	ClientCouner counter(connection);
 	tcp::NetworkThread loop;
-	loop.TriggerTasksLibEvent();
 	std::list<std::shared_ptr<tcp::TcpClient>> clients;
 	for(i=0;i<connection;i++){
 		std::shared_ptr<tcp::TcpClient> client(new tcp::TcpClient(&loop,&counter,serv_addr,port,cc));
 		client->Bind(client_addr);
-        client->SetSendBufSize(kSndBufferLen);
-        client->SetRecvBufSize(kRcvBufferLen);
+        //client->SetSendBufSize(kSndBufferLen);
+       // client->SetRecvBufSize(kRcvBufferLen);
 		client->setSenderInfo(client_id,totalSend);
 		client->AsynConnect();
 		client_id++;
 		clients.push_back(client);
 	}
 	while(m_running){
-		loop.Loop();
+
+		loop.LoopOnce();
 		if(counter.IsAllDeactive()){
 			break;
 		}

@@ -3,30 +3,27 @@
 #include <memory.h>
 #include <unistd.h>
 #include <algorithm>
-#include "base/byte_codec.h"
+#include "byte_codec.h"
 #include "logging.h"
+#include "anet.h"
 #include "tcp_client.h"
 #include "network_thread.h"
 #include "logging.h"
 namespace tcp{
 const int MAX_LINE=1400;
-const int kPacketBatchSize=20;
+const int kPacketBatchSize=10;
 static const size_t TCP_CC_NAME_MAX = 16;
 void TcpClientThread(void *arg){
 	TcpClient *client=static_cast<TcpClient*>(arg);
 	client->SynConnect();
 }
-void WriteEventCallback(evutil_socket_t fd, short event, void *arg){
+int WriteEventTimer(aeEventLoop *el, long long id, void *arg){
 	TcpClient *client=static_cast<TcpClient*>(arg);
-	client->NotifiWrite();
+	return client->NextWriteTime();
 }
-void ReadEventCallback(struct bufferevent *bev, void *arg){
+void ReadEventCallback(aeEventLoop *el, int fd, void *arg, int mask){
 	TcpClient *client=static_cast<TcpClient*>(arg);
 	client->NotifiRead();
-}
-void ErrorCallback(struct bufferevent *bev, short event, void *arg){
-	TcpClient *client=static_cast<TcpClient*>(arg);
-	client->NotifiError(event);
 }
 TcpClient::TcpClient(NetworkThread* thread,ActiveClientCounter *counter,const char*serv_ip,
 		uint16_t port,std::string &cc_algo)
@@ -45,7 +42,6 @@ TcpClient::TcpClient(NetworkThread* thread,ActiveClientCounter *counter,const ch
 }
 TcpClient::~TcpClient(){
 	Close();
-	BufferFree();
 }
 void TcpClient::Bind(const char *local_ip){
     if((sockfd_= socket(AF_INET, SOCK_STREAM, 0)) < 0)
@@ -70,7 +66,6 @@ void TcpClient::SetSendBufSize(int len){
     if(sockfd_<0){
         return ;
     }
-    
     int nSndBufferLen =len;
     int nLen          = sizeof(int);
     setsockopt(sockfd_, SOL_SOCKET, SO_SNDBUF, (char*)&nSndBufferLen, nLen);
@@ -97,7 +92,6 @@ void TcpClient::AsynConnect(){
 	}
 }
 void TcpClient::SynConnect(){
-	struct event_base *evb=thread_->getEventBase();
 	if(sockfd_<0){
 		LOG(INFO)<<"Call Bind First";
         StopConectionThread();
@@ -129,33 +123,47 @@ void TcpClient::StopUseOnce(){
 void TcpClient::NotifiConnect(){
 	if(connected_){
 		random_.seedTime();
-		struct event_base *evb=thread_->getEventBase();
-    	evutil_make_socket_nonblocking(sockfd_);
-    	bev_=bufferevent_socket_new(evb, sockfd_, BEV_OPT_CLOSE_ON_FREE);
-    	bufferevent_setcb(bev_, ReadEventCallback, NULL, ErrorCallback, (void *)this);
-    	bufferevent_enable(bev_, EV_READ | EV_PERSIST);
-    	NextWriteEvent(0);
+		aeEventLoop *evb=thread_->getEventBase();
+		anetNonBlock(nullptr,sockfd_);
+		aeCreateTimeEvent(evb, 1, WriteEventTimer,(void*)this, NULL);
+	    if( aeCreateFileEvent(evb,sockfd_, AE_READABLE,
+	    		ReadEventCallback, (void*)this) == AE_ERR )
+	    {
+	        LOG(INFO)<<"create read event failed";
+	        close(sockfd_);
+	    }
 	}
 }
 void TcpClient::NotifiRead(){
-    char line[MAX_LINE + 1];
-    int n;
-    while((n = bufferevent_read(bev_, line, MAX_LINE)) > 0)
-    {
-        line[n] = '\0';
+    char buffer[MAX_LINE]={0};
+    int res;
+    while(true){
+        res = read(sockfd_, buffer, MAX_LINE);
+        if( res <= 0 )
+        {
+        	if(errno == EWOULDBLOCK || errno == EAGAIN){
+        	}else{
+            	LOG(INFO)<<"read error";
+                Close();
+        	}
+            break;
+        }
         if(!recv_ack_){
         	recv_ack_=true;
+        	printf("%d read %s",client_id_,buffer);
+        }
+        if(recv_ack_){
+            LOG(INFO)<<"trans success";
+            NotifiDeactiveMsg();
         }
     }
-    if(recv_ack_){
-    	LOG(INFO)<<"trans success";
-    	Close();
-    	NotifiDeactiveMsg();
-    }
 }
-void TcpClient::NotifiWrite(){
+int TcpClient::NextWriteTime(){
 	if(sockfd_<=0){
-		return;
+		return 0;
+	}
+	if(GetBatchSize()==0){
+		return 0;
 	}
 	char msg[MAX_LINE]={0};
 	int ret=0;
@@ -163,12 +171,13 @@ void TcpClient::NotifiWrite(){
 		basic::DataWriter writer(msg,MAX_LINE);
 		writer.WriteUInt32(client_id_);
 		writer.WriteUInt32(totalByte_);
-	    ret=bufferevent_write(bev_, msg, MAX_LINE);
-	    if(ret==0){
-	    	IncreaseWriteBytes(MAX_LINE);
+	    ret=WriteMessage(msg, MAX_LINE);
+	    CHECK(ret==MAX_LINE);
+	    if(ret>0){
+	    	IncreaseWriteBytes(ret);
 	    }
 		first_sent_=true;
-		int batch=GetBatchSize()*3;
+		int batch=GetBatchSize();
 	    int write=WritePacketInBatch(batch);
 	    IncreaseWriteBytes(write);
 	}else{
@@ -176,44 +185,14 @@ void TcpClient::NotifiWrite(){
 	    int write=WritePacketInBatch(batch);
 	    IncreaseWriteBytes(write);
 	}
-	if(sendByte_<totalByte_){
-		uint32_t micro=random_.nextInt(0,1000); //0-1 ms
-		NextWriteEvent(micro);
-	}
-}
-void TcpClient::NotifiError(short event){
-    if (event & BEV_EVENT_TIMEOUT) {
-        printf("Timed out\n");
-    }
-    else if (event & BEV_EVENT_EOF) {
-        printf("connection closed\n");
-        Close();
-    }
-    else if (event & BEV_EVENT_ERROR) {
-        printf("some other error\n");
-        Close();
-    }
-}
-void TcpClient::NextWriteEvent(int micro){
-	struct timeval tv;
-	struct event_base *evb=thread_->getEventBase();
-	event_assign(&write_event_, evb, -1, 0,WriteEventCallback, (void*)this);
-	evutil_timerclear(&tv);
-	tv.tv_sec = micro/(1000*1000);
-	tv.tv_usec=micro%(1000*1000);
-	event_add(&write_event_, &tv);
+	int NextTimems=random_.nextInt(0,10);
+	return NextTimems;
 }
 void TcpClient::Close(){
-	NotifiDeactiveMsg();
 	if(sockfd_>0){
-		evutil_closesocket(sockfd_);
+		DeleteReadEvent();
+		close(sockfd_);
 		sockfd_=0;
-	}
-}
-void TcpClient::BufferFree(){
-	if(bev_){
-		bufferevent_free(bev_);
-		bev_=nullptr;
 	}
 }
 void TcpClient::setCongestionAlgo(){
@@ -244,12 +223,12 @@ int TcpClient::WritePacketInBatch(int length){
 	while(remain>0){
 		int write=std::min(remain,MAX_LINE);
 		int ret=0;
-	    ret=bufferevent_write(bev_, msg, write);
-	    if(ret==0){
-	    	total+=write;
-	    	remain-=write;
+	    ret=WriteMessage(msg, write);
+	    if(ret>0){
+	    	total+=ret;
+	    	remain-=ret;
 	    }else{
-	    	LOG(INFO)<<client_id_<<" write error";
+	    	//LOG(INFO)<<client_id_<<" write error";
 	    	break;
 	    }
 	}
@@ -262,5 +241,31 @@ void TcpClient::NotifiDeactiveMsg(){
     	}
 		deactive_sent_=true;
 	}
+}
+void TcpClient::DeleteReadEvent(){
+	if(readEventRegisted_){
+		aeEventLoop *evb_=thread_->getEventBase();
+		if(evb_&&(sockfd_>0)){
+			 aeDeleteFileEvent(evb_, sockfd_, AE_READABLE);
+		}
+	}
+}
+//http://liubigbin.github.io/2016/04/07/socket%E9%9D%9E%E9%98%BB%E5%A1%9E%E8%AF%BB%E5%86%99/
+int TcpClient::WriteMessage(const char *msg, int len){
+	int written_bytes=0;
+	if(sockfd_<=0){
+		return written_bytes;
+	}
+	written_bytes=write(sockfd_,msg,len);
+    if(written_bytes<=0){
+        if(errno == EWOULDBLOCK || errno == EAGAIN){
+		written_bytes=0;
+        }else{
+	    written_bytes=0;
+            LOG(INFO)<<"write error "<<errno;
+            CHECK(0);
+        }
+    }
+	return written_bytes;
 }
 }

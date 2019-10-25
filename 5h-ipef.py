@@ -18,7 +18,7 @@ import sys
 # h1            r3---h2
 #  \           /2
 #   ---r2-----
-bottleneckbw=16
+bottleneckbw=20
 nonbottlebw=500;
 max_rtt=300
 bottleneckQ=bottleneckbw*1000*max_rtt/(1500*8)

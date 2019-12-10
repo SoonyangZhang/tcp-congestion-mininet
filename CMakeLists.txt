@@ -6,7 +6,7 @@ set(CMAKE_CXX_FLAGS "-fPIC")
 add_definitions(-D__STDC_FORMAT_MACROS)
 add_definitions(-D_GLIBCXX_USE_CXX11_ABI=0)
 add_definitions(-D__linux__)
-
+add_definitions(-std=c++11)
 include_directories(/usr/local/include)
 LINK_DIRECTORIES(/usr/local/lib)
 include_directories(${CMAKE_SOURCE_DIR}/)

@@ -16,6 +16,14 @@ static inline constexpr T* owner_of( M *ptr, const M T::*member ) {
 }
 #define my_container_of(ptr, type, member) \
      owner_of(ptr, &type::member)
+namespace std
+{
+template<typename T, typename ...Args>
+std::unique_ptr<T> make_unique( Args&& ...args )
+{
+    return std::unique_ptr<T>( new T( std::forward<Args>(args)... ) );
+}
+}
 namespace tcp
 {
 class QueuedTask {

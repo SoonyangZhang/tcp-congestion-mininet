@@ -9,10 +9,12 @@
 #include "tcp_client.h"
 #include "network_thread.h"
 #include "logging.h"
+#include "tcp_info.h"
 namespace tcp{
 const int MAX_LINE=1400;
 const int kPacketBatchSize=10;
 static const size_t TCP_CC_NAME_MAX = 16;
+uint32_t log_interval=5000;
 void TcpClientThread(void *arg){
 	TcpClient *client=static_cast<TcpClient*>(arg);
 	client->SynConnect();
@@ -60,7 +62,7 @@ void TcpClient::Bind(const char *local_ip){
         return ;
     }
     bind(sockfd_, (struct sockaddr *)&localaddr, sizeof(localaddr));
-	setCongestionAlgo();
+	SetCongestionAlgo();
 }
 void TcpClient::SetSendBufSize(int len){
     if(sockfd_<0){
@@ -78,12 +80,14 @@ void TcpClient::SetRecvBufSize(int len){
     int nLen          = sizeof(int);
     setsockopt(sockfd_, SOL_SOCKET, SO_RCVBUF, (char*)&nRcvBufferLen, nLen);
 }
-void TcpClient::setSenderInfo(uint32_t cid,uint32_t length){
+void TcpClient::SetSenderInfo(uint32_t cid,uint32_t length){
 	client_id_=cid;
 	if(length<MAX_LINE){
 		length=MAX_LINE;
 	}
 	totalByte_=length;
+    std::string name=cc_algo_+"_"+std::to_string(client_id_)+".txt";
+    log_.open(name.c_str(), std::fstream::out);
 }
 void TcpClient::AsynConnect(){
 	if(sockfd_>0){
@@ -133,6 +137,7 @@ void TcpClient::NotifiConnect(){
 	        close(sockfd_);
 	    }
 	}
+   LogTcpInfoEvent();
 }
 void TcpClient::NotifiRead(){
     char buffer[MAX_LINE]={0};
@@ -191,11 +196,12 @@ int TcpClient::NextWriteTime(){
 void TcpClient::Close(){
 	if(sockfd_>0){
 		DeleteReadEvent();
+		UpdateTcpInfo();
 		close(sockfd_);
 		sockfd_=0;
 	}
 }
-void TcpClient::setCongestionAlgo(){
+void TcpClient::SetCongestionAlgo(){
     char optval[TCP_CC_NAME_MAX]={0};
     memset(optval,0,TCP_CC_NAME_MAX);
     int copy=std::min(TCP_CC_NAME_MAX,cc_algo_.size());
@@ -240,6 +246,7 @@ void TcpClient::NotifiDeactiveMsg(){
     		counter_->Decrease();
     	}
 		deactive_sent_=true;
+		LogTcpInfoEvent();
 	}
 }
 void TcpClient::DeleteReadEvent(){
@@ -267,5 +274,38 @@ int TcpClient::WriteMessage(const char *msg, int len){
         }
     }
 	return written_bytes;
+}
+void TcpClient::LogTcpInfoEvent(){
+    UpdateTcpInfo();   
+    if(deactive_sent_){
+        
+    }else{
+		thread_->PostDelayedTask([this](){
+			LogTcpInfoEvent();
+		},log_interval);        
+    }
+}
+void TcpClient::UpdateTcpInfo(){
+    if(sockfd_<0){
+        return ;
+    }
+    struct tcp_info_copy info;
+    int length=sizeof(struct tcp_info_copy);
+    if(getsockopt(sockfd_,IPPROTO_TCP,TCP_INFO,(void*)&info,(socklen_t*)&length)==0){
+        tcp_bytes_sent_=info.tcpi_bytes_sent;
+        min_rtt_=info.tcpi_min_rtt;
+        rtt_=info.tcpi_rtt;
+    }  
+	if(log_.is_open()){
+		char line [256];
+		memset(line,0,256);
+		float loss=0.0;
+                if(tcp_bytes_sent_>totalByte_){
+			loss=100.0*(tcp_bytes_sent_-totalByte_)/tcp_bytes_sent_;
+		}
+		sprintf (line, "%d %16d %16d %16f %llu",
+				client_id_,rtt_,min_rtt_,loss,tcp_bytes_sent_);
+		log_<<line<<std::endl;
+	}    
 }
 }

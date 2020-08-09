@@ -6,6 +6,7 @@
 #include <netinet/tcp.h>
 #include "base/base_thread.h"
 #include "base/random.h"
+#include <fstream>
 namespace tcp{
 class NetworkThread;
 class ActiveClientCounter{
@@ -21,7 +22,7 @@ public:
 	void Bind(const char *local_ip);
     void SetSendBufSize(int len);
     void SetRecvBufSize(int len);
-	void setSenderInfo(uint32_t cid,uint32_t length);
+	void SetSenderInfo(uint32_t cid,uint32_t length);
 	void AsynConnect();
 	void SynConnect();
 	void NotifiConnect();
@@ -30,8 +31,9 @@ public:
 	int NextWriteTime();
 	void Close();
 	bool IsBulkReceivedByPeer(){return recv_ack_;}
+    void LogTcpInfoEvent();
 private:
-	void setCongestionAlgo();
+	void SetCongestionAlgo();
 	void IncreaseWriteBytes(int size);
 	int GetBatchSize();
 	int WritePacketInBatch(int length);
@@ -39,6 +41,7 @@ private:
     void NotifiDeactiveMsg();
     void DeleteReadEvent();
     int WriteMessage(const char *msg, int len);
+    void UpdateTcpInfo();
 	uint32_t client_id_{0};
 	NetworkThread *thread_;
 	ActiveClientCounter *counter_{nullptr};
@@ -55,5 +58,10 @@ private:
 	std::string cc_algo_{"cubic"};
 	bool deactive_sent_{false};
 	bool readEventRegisted_{false};
+    uint64_t tcp_bytes_sent_=0;
+        uint32_t min_rtt_=0;
+        uint32_t rtt_=0;
+    uint32_t last_log=0;
+    std::fstream log_;
 };
 }

@@ -18,18 +18,18 @@ import sys
 # h1            r3---h2
 #             
 #
-bottleneckbw=120
+bottleneckbw=6
 nonbottlebw=500;  
-max_queue_size =bottleneckbw*1000*100/(1500*8) 
+max_queue_size =bottleneckbw*1000*30/(1500*8) 
 net = Mininet( cleanup=True )
 h1 = net.addHost('h1',ip='10.0.1.1')
 r1 = net.addHost('r1',ip='10.0.1.2')
 r3 = net.addHost('r3',ip='10.0.5.1')
 h2 = net.addHost('h2',ip='10.0.5.2')
 c0 = net.addController('c0')
-net.addLink(h1,r1,intfName1='h1-eth0',intfName2='r1-eth0',cls=TCLink , bw=nonbottlebw, delay='20ms', max_queue_size=max_queue_size)
-net.addLink(r1,r3,intfName1='r1-eth1',intfName2='r3-eth0',cls=TCLink , bw=bottleneckbw, delay='20ms', max_queue_size=max_queue_size)
-net.addLink(r3,h2,intfName1='r3-eth1',intfName2='h2-eth0',cls=TCLink , bw=nonbottlebw, delay='10ms', max_queue_size=max_queue_size)
+net.addLink(h1,r1,intfName1='h1-eth0',intfName2='r1-eth0',cls=TCLink , bw=nonbottlebw, delay='5ms', max_queue_size=max_queue_size)
+net.addLink(r1,r3,intfName1='r1-eth1',intfName2='r3-eth0',cls=TCLink , bw=bottleneckbw, delay='5ms', max_queue_size=max_queue_size)
+net.addLink(r3,h2,intfName1='r3-eth1',intfName2='h2-eth0',cls=TCLink , bw=nonbottlebw, delay='5ms', max_queue_size=max_queue_size)
 net.build()
 h1.cmd("ifconfig h1-eth0 10.0.1.1/24")
 h1.cmd("route add default gw 10.0.1.2 dev h1-eth0")
@@ -60,10 +60,11 @@ serv_port=3333
 log_name="server_test.txt"
 server_cmd_common="./build/echo_server  -p %s -l %s"
 server_cmd=server_cmd_common%(str(serv_port),log_name)
-client_cmd_common="./build/echo_client -l %s -h %s -p %s -c %s -f %s"
+client_cmd_common="./build/echo_client -l %s -h %s -g %s -p %s -c %s -f %s"
 client_id=1
-flows=50
-client_cmd=client_cmd_common%(h1.IP(),h2.IP(),str(serv_port),str(client_id),str(flows))
+flows=3
+congestion="cubic"
+client_cmd=client_cmd_common%(h1.IP(),h2.IP(),congestion,str(serv_port),str(client_id),str(flows))
 server_p=h2.popen(server_cmd)
 client_p=h1.popen(client_cmd)
 while 1:

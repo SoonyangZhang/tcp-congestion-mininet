@@ -57,7 +57,7 @@ int main(int argc, char *argv[]){
     char client_addr[32]={0};
     memcpy(serv_addr,host.c_str(),host.size());
     memcpy(client_addr,local.c_str(),local.size());
-	uint32_t totalSend=200*1024*1024;
+	uint32_t totalSend=60*1024*1024;
     
 	int i=0;
 	ClientCouner counter(connection);
@@ -68,7 +68,7 @@ int main(int argc, char *argv[]){
 		client->Bind(client_addr);
         //client->SetSendBufSize(kSndBufferLen);
        // client->SetRecvBufSize(kRcvBufferLen);
-		client->setSenderInfo(client_id,totalSend);
+		client->SetSenderInfo(client_id,totalSend);
 		client->AsynConnect();
 		client_id++;
 		clients.push_back(client);

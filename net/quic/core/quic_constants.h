@@ -1,6 +1,5 @@
 #pragma once
 namespace quic {
-using QuicByteCount = uint64_t;
 // Simple time constants.
 const uint64_t kNumSecondsPerMinute = 60;
 const uint64_t kNumSecondsPerHour = kNumSecondsPerMinute * 60;

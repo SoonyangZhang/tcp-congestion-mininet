@@ -116,4 +116,15 @@ scoped_refptr<T> Create (T1 a1,T2 a2)
 {
    return scoped_refptr<T> (new T (a1,a2));
 }
+namespace subtle{
+template <typename T>
+scoped_refptr<T> AdoptRefIfNeeded(T* obj) {
+  return scoped_refptr<T>(obj);
+}    
+}
+template <typename T, typename... Args>
+scoped_refptr<T> MakeRefCounted(Args&&... args) {
+  T* obj = new T(std::forward<Args>(args)...);
+  return subtle::AdoptRefIfNeeded(obj);
+}
 }

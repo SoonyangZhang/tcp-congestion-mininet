@@ -4,10 +4,10 @@
 
 #ifndef QUICHE_QUIC_CORE_QUIC_ALARM_H_
 #define QUICHE_QUIC_CORE_QUIC_ALARM_H_
+#include "net/quic/api/quic_export.h"
+#include "net/quic/core/quic_arena_scoped_ptr.h"
+#include "net/quic/core/quic_time.h"
 
-#include "quic_arena_scoped_ptr.h"
-#include "quic_time.h"
-#include "quic_export.h"
 
 namespace quic {
 

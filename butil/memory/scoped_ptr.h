@@ -100,7 +100,7 @@
 #include "butil/compiler_specific.h"
 #include "butil/move.h"
 #include "butil/type_traits.h"
-
+#include "butil/memory/free_deleter.h"
 namespace butil {
 
 namespace subtle {
@@ -163,16 +163,6 @@ struct DefaultDeleter<T[n]> {
   COMPILE_ASSERT(sizeof(T) == -1, do_not_use_array_with_size_as_type);
 };
 
-// Function object which invokes 'free' on its parameter, which must be
-// a pointer. Can be used to store malloc-allocated pointers in scoped_ptr:
-//
-// scoped_ptr<int, butil::FreeDeleter> foo_ptr(
-//     static_cast<int*>(malloc(sizeof(int))));
-struct FreeDeleter {
-  inline void operator()(void* ptr) const {
-    free(ptr);
-  }
-};
 
 namespace internal {
 

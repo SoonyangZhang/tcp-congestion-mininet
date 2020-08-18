@@ -2,11 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "quic_clock.h"
+#include "net/quic/core/quic_clock.h"
 
 #include <limits>
 
-#include "quic_logging.h"
+#include "net/quic/api/quic_logging.h"
 
 namespace quic {
 

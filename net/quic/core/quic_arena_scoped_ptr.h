@@ -13,14 +13,14 @@
 
 #include <cstdint>  // for uintptr_t
 
-#include "quic_aligned.h"
-#include "quic_export.h"
-#include "quic_logging.h"
+#include "net/quic/api/quic_aligned.h"
+#include "net/quic/api/quic_export.h"
+#include "net/quic/api/quic_logging.h"
 
 namespace quic {
 
 template <typename T>
-class QUIC_NO_EXPORT QuicArenaScopedPtr {
+class QuicArenaScopedPtr {
   static_assert(QUIC_ALIGN_OF(T*) > 1,
                 "QuicArenaScopedPtr can only store objects that are aligned to "
                 "greater than 1 byte.");

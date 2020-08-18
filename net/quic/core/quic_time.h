@@ -19,7 +19,7 @@
 #include <ostream>
 #include <string>
 
-#include "quic_export.h"
+#include "net/quic/api/quic_export.h"
 
 // TODO(vasilvv): replace with ABSL_MUST_USE_RESULT once we're using absl.
 #if defined(__clang__)

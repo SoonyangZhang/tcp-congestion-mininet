@@ -11,8 +11,8 @@
 
 #include <ostream>
 #include <string>
-#include "quic_export.h"
-#include "quic_ip_address_family.h"
+#include "net/quic/api/quic_export.h"
+#include "net/quic/api/quic_ip_address_family.h"
 
 namespace quic {
 

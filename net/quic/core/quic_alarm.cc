@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "quic_alarm.h"
+#include "net/quic/core/quic_alarm.h"
 
 namespace quic {
 

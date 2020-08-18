@@ -5,9 +5,9 @@
 #ifndef QUICHE_QUIC_CORE_QUIC_ALARM_FACTORY_H_
 #define QUICHE_QUIC_CORE_QUIC_ALARM_FACTORY_H_
 
-#include "quic_alarm.h"
-#include "quic_one_block_arena.h"
-#include "quic_export.h"
+#include "net/quic/core/quic_alarm.h"
+#include "net/quic/core/quic_one_block_arena.h"
+#include "net/quic/api/quic_export.h"
 
 namespace quic {
 

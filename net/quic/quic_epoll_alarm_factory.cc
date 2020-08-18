@@ -6,7 +6,7 @@
 
 #include <type_traits>
 
-#include "quic_arena_scoped_ptr.h"
+#include "net/quic/core/quic_arena_scoped_ptr.h"
 
 namespace quic {
 namespace {

@@ -2,12 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "quic_bandwidth.h"
+#include "net/quic/core/quic_bandwidth.h"
 
 #include <cinttypes>
 #include <string>
 
-#include "quic_string_utils.h"
+#include "net/quic/api/quic_string_utils.h"
 
 namespace quic {
 

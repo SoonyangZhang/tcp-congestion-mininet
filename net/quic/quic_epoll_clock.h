@@ -6,8 +6,8 @@
 #define NET_QUIC_PLATFORM_IMPL_QUIC_EPOLL_CLOCK_H_
 
 #include "base/magic.h"
-#include "quic_clock.h"
-#include "quic_time.h"
+#include "net/quic/core/quic_clock.h"
+#include "net/quic/core/quic_time.h"
 
 namespace epoll_server {
 

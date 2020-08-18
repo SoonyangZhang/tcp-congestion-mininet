@@ -5,8 +5,8 @@
 #ifndef QUICHE_QUIC_CORE_QUIC_CLOCK_H_
 #define QUICHE_QUIC_CORE_QUIC_CLOCK_H_
 
-#include "quic_time.h"
-#include "quic_export.h"
+#include "net/quic/core/quic_time.h"
+#include "net/quic/api/quic_export.h"
 
 /* API_DESCRIPTION
  QuicClock is used by QUIC core to get current time. Its instance is created by

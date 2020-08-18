@@ -2,16 +2,16 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "quic_socket_address.h"
+#include "net/quic/api/quic_socket_address.h"
 
 #include <cstring>
 #include <limits>
 #include <string>
 
-#include "quic_bug_tracker.h"
-#include "quic_ip_address.h"
-#include "quic_ip_address_family.h"
-#include "quic_string_utils.h"
+#include "net/quic/api/quic_bug_tracker.h"
+#include "net/quic/api/quic_ip_address.h"
+#include "net/quic/api/quic_ip_address_family.h"
+#include "net/quic/api/quic_string_utils.h"
 
 namespace quic {
 

@@ -13,9 +13,10 @@
 #include <ostream>
 #include <string>
 
-#include "quic_constants.h"
-#include "quic_time.h"
-#include "quic_export.h"
+#include "net/quic/core/quic_constants.h"
+#include "net/quic/core/quic_time.h"
+#include "net/quic/core/quic_types.h"
+#include "net/quic/api/quic_export.h"
 
 namespace quic {
 

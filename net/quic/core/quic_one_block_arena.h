@@ -12,9 +12,9 @@
 
 #include <cstdint>
 
-#include "quic_arena_scoped_ptr.h"
-#include "quic_bug_tracker.h"
-#include "quic_logging.h"
+#include "net/quic/core/quic_arena_scoped_ptr.h"
+#include "net/quic/api/quic_bug_tracker.h"
+#include "net/quic/api/quic_logging.h"
 
 namespace quic {
 

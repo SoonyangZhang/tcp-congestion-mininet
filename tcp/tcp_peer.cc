@@ -5,7 +5,7 @@
 #include <netinet/in.h>
 #include <sys/socket.h>
 #include <arpa/inet.h>
-#include "logging.h"
+#include "dmlc_logging.h"
 #include "base/byte_codec.h"
 #include "tcp_peer.h"
 #include "tcp_server.h"

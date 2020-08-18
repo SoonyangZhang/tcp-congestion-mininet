@@ -8,6 +8,15 @@
 #include "quic_epoll_alarm_factory.h"
 #include "quic_epoll.h"
 #include "quic_epoll_clock.h"
+#include "net/quiche/quiche_optional.h"
+#include "butil/strings/string_util.h"
+#include "net/quiche/quiche_string_piece.h"
+#include <string>
+namespace quiche{
+  static bool EndsWith(QuicheStringPiece data, QuicheStringPiece suffix) {
+    return butil::EndsWith(data.as_string(), suffix.as_string(), true);
+  }
+}
 namespace quic{
 class TestAlarmObjectInterface{
 public: 
@@ -40,10 +49,16 @@ public:
     ~TestAlarmObject() override{}
     void Count() override{
         count_++;
-        std::cout<<"counter "<<count_<<std::endl;
         if(count_<10){
             UpdateAlarm();
         }
+        QuicTime now=clock_->ApproximateNow();
+        if(last_time_==QuicTime::Zero()){
+            last_time_=now;
+        }
+        QuicTime::Delta delta=now-last_time_;
+        std::cout<<"counter "<<count_<<" "<<delta.ToMilliseconds()<<std::endl;
+        last_time_=now;     
     }
     void UpdateAlarm(){
         if(alarm_->IsSet()){
@@ -57,6 +72,7 @@ private:
     QuicClock *clock_=nullptr;
     QuicArenaScopedPtr<QuicAlarm> alarm_;
     QuicOneBlockArena<1024> arena_;
+    QuicTime last_time_=QuicTime::Zero();
     int count_=0;
 };
 }

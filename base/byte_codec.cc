@@ -2,7 +2,7 @@
 #include <limits>
 #include <stdint.h>
 #include "byte_codec.h"
-#include "logging.h"
+#include "dmlc_logging.h"
 namespace basic{
 namespace {
 // We define an unsigned 16-bit floating point value, inspired by IEEE floats

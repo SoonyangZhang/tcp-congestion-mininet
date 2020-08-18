@@ -2,7 +2,7 @@
 #include <list>
 #include "proto_time.h"
 #include "network_thread.h"
-#include "logging.h"
+#include "dmlc_logging.h"
 using namespace base;
 namespace tcp{
 int RunTaskCallback(struct aeEventLoop *eventLoop, long long id, void *arg){

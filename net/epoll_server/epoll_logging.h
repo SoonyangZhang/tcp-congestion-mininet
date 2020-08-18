@@ -1,5 +1,5 @@
 #pragma once
-#include "logging.h"
+#include "dmlc_logging.h"
 namespace epoll_server {
 
 #define EPOLL_LOG_IMPL(severity) DLOG(severity)

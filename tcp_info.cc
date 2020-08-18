@@ -8,7 +8,7 @@
 #include <sys/types.h> 
 #include <netinet/tcp.h>
 #include <iostream>
-#include "logging.h"
+#include "dmlc_logging.h"
 static const size_t TCP_CC_NAME_MAX = 16;
 void error_handling(char *message);
 void print_cc_type(int fd){

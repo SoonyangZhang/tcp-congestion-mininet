@@ -4,11 +4,10 @@
 #include <unistd.h>
 #include <algorithm>
 #include "byte_codec.h"
-#include "logging.h"
 #include "anet.h"
 #include "tcp_client.h"
 #include "network_thread.h"
-#include "logging.h"
+#include "dmlc_logging.h"
 #include "tcp_info.h"
 namespace tcp{
 const int MAX_LINE=1400;

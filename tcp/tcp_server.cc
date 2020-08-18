@@ -1,7 +1,7 @@
 #include <unistd.h>
 #include "tcp_server.h"
 #include "tcp_peer.h"
-#include "logging.h"
+#include "dmlc_logging.h"
 #include "tcp_client.h"
 #include "anet.h"
 namespace tcp{

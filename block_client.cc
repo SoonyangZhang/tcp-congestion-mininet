@@ -16,7 +16,7 @@ https://blog.csdn.net/shine_journey/article/details/72620393
 #include <string>
 #include <memory>
 #include <algorithm>
-#include "logging.h"
+#include "dmlc_logging.h"
 #include "base/byte_codec.h"
 #include "cmdline.h"
 using namespace std;

@@ -5,7 +5,7 @@
 #include <assert.h>
 #include <signal.h>
 #include "proto_time.h"
-#include "logging.h"
+#include "dmlc_logging.h"
 #include "tcp/tcp_server.h"
 #include "tcp/tcp_client.h"
 #include "cmdline.h"

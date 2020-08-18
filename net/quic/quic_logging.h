@@ -1,5 +1,5 @@
 #pragma once
-#include "logging.h"
+#include "dmlc_logging.h"
 #define QUICHE_LOG_IMPL(severity) QUICHE_CHROMIUM_LOG_##severity
 #define QUICHE_VLOG_IMPL(verbose_level) VLOG(verbose_level)
 #define QUICHE_LOG_EVERY_N_SEC_IMPL(severity, seconds) QUICHE_LOG_IMPL(severity)

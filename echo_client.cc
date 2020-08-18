@@ -8,7 +8,7 @@
 #include "proto_time.h"
 #include "tcp_client.h"
 #include "network_thread.h"
-#include "logging.h"
+#include "dmlc_logging.h"
 bool m_running=true;
 void signal_exit_handler(int sig)
 {

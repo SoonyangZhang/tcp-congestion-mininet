@@ -7,7 +7,7 @@
 #include <string>
 #include "ae.h"
 #include "anet.h"
-#include "logging.h"
+#include "dmlc_logging.h"
 #include "cmdline.h"
 #include "proto_time.h"
 #include "byte_codec.h"

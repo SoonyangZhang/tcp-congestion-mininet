@@ -142,7 +142,7 @@ class RefCountedBase {
  private:
   mutable RefCounter ref_count_{0};
 
-  BASE_DISALLOW_COPY_AND_ASSIGN(RefCountedBase);
+  DISALLOW_COPY_AND_ASSIGN(RefCountedBase);
 };
 template <class T>
 class RefCountedObject : public T {
@@ -183,7 +183,7 @@ class RefCountedObject : public T {
 
   mutable RefCounter ref_count_{0};
 
-  BASE_DISALLOW_COPY_AND_ASSIGN(RefCountedObject);
+  DISALLOW_COPY_AND_ASSIGN(RefCountedObject);
 };
 class empty{};
 template<typename T,typename Parent=empty>
@@ -205,6 +205,6 @@ public:
 protected:
     virtual ~SimpleRefCount(){}
     mutable RefCounter ref_count_{0};
-    BASE_DISALLOW_COPY_AND_ASSIGN(SimpleRefCount);
+    DISALLOW_COPY_AND_ASSIGN(SimpleRefCount);
 };
 }

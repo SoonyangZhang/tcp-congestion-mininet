@@ -13,8 +13,7 @@
 #include <vector>
 #include <stdexcept>
 #include <memory>
-#include "base.h"
-
+#include "dmlc_base.h"
 #if DMLC_LOG_STACK_TRACE
 #include <cxxabi.h>
 #include DMLC_EXECINFO_H

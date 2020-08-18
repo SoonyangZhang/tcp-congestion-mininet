@@ -5,7 +5,6 @@
  */
 #ifndef DMLC_BASE_H_
 #define DMLC_BASE_H_
-#define NDEBUG 
 /*! \brief whether use glog for logging */
 #ifndef DMLC_USE_GLOG
 #define DMLC_USE_GLOG 0
@@ -268,6 +267,6 @@ inline const char* BeginPtr(const std::string &str) {
    replace fopen64 with std::fopen. Also determine ability to print stack trace
    for fatal error and define DMLC_LOG_STACK_TRACE if stack trace can be
    produced. Always keep this #include at the bottom of dmlc/base.h */
-#include "build_config.h"
+#include "dmlc_build_config.h"
 
 #endif  // DMLC_BASE_H_
